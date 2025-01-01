@@ -3,6 +3,8 @@ import numpy as np
 from scipy.cluster.vq import kmeans2
 from PIL import Image
 
+# DEBUG, TRYING MORE OPTIMIZED APPROACH FOR VECTOR ART
+
 custom_palette = [
     (46, 46, 67),
     (74, 75, 91),
@@ -59,15 +61,13 @@ def dither_image(image):
     return np.array(dithered_image.convert("RGB"))
 
 
-def generate_pixel_art(image_path, pixelation_factor=5, edge_strength=0.3, target_size=1200):
+def generate_pixel_art(image_path, pixelation_factor=4, edge_strength=0.3, target_size=512, skip_edge_detection=False):
     img = cv2.imread(image_path)
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
     if max(img.shape) > target_size:
         scale_factor = target_size / max(img.shape)
         img = cv2.resize(img, None, fx=scale_factor, fy=scale_factor, interpolation=cv2.INTER_AREA)
-
-    img = cv2.GaussianBlur(img, (5, 5), 0)
 
     small_img = cv2.resize(
         img,
@@ -80,7 +80,7 @@ def generate_pixel_art(image_path, pixelation_factor=5, edge_strength=0.3, targe
 
     palettized_img = palettize_image_scipy(pixelated_img, custom_palette)
 
-    if edge_strength > 0:
+    if edge_strength > 0 and not skip_edge_detection:
         gray = cv2.cvtColor(palettized_img, cv2.COLOR_RGB2GRAY)
 
         sobel_x = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=1)
@@ -106,14 +106,14 @@ def generate_pixel_art(image_path, pixelation_factor=5, edge_strength=0.3, targe
 
         palettized_img[edge_image > 0] = edge_image[edge_image > 0]
 
-    kernel = np.ones((3, 3), np.uint8)
-    palettized_img = cv2.morphologyEx(palettized_img, cv2.MORPH_CLOSE, kernel)
+    final_img = cv2.resize(palettized_img, (32, 32), interpolation=cv2.INTER_NEAREST)
 
-    return palettized_img
+    return final_img
 
 
 input_image_path = 'image.jpg'
-output_image = generate_pixel_art(input_image_path, pixelation_factor=5, edge_strength=0.3, target_size=1200)
+output_image = generate_pixel_art(input_image_path, pixelation_factor=4, edge_strength=0, target_size=512,
+                                  skip_edge_detection=True)
 
 cv2.imshow('Pixel Art', cv2.cvtColor(output_image, cv2.COLOR_RGB2BGR))
 cv2.waitKey(0)
